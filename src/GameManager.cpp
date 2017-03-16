@@ -192,6 +192,7 @@ void GameManager::initScene() {
     shipPartProgram->addUniform("viewPos");
     shipPartProgram->addUniform("shadowDepth");
     shipPartProgram->addUniform("cameraDepth");
+    shipPartProgram->addUniform("prevMVPMatrix");
     shipPartProgram->addUniform("LS");
 
     shipPartColorTexture = make_shared<Texture>();
@@ -614,6 +615,11 @@ void GameManager::drawShipPart(shared_ptr<MatrixStack> P,
     glUniformMatrix4fv(shader->getUniform("LS"), 1, GL_FALSE, value_ptr(LSpace));
     shipPartColorTexture->bind(shader->getUniform("diffuseTex"));
     shipPartSpecularTexture->bind(shader->getUniform("specularTex"));
+    shared_ptr<MatrixStack> prevMVP = make_shared<MatrixStack>();
+    prevMVP->loadIdentity();
+    prevMVP->multMatrix(prevViewProjectionMatrix->topMatrix());
+    prevMVP->multMatrix(spaceShipPart->getPrevM()->topMatrix());
+    glUniformMatrix4fv(shader->getUniform("prevMVPMatrix"), 1, GL_FALSE, value_ptr(prevMVP->topMatrix()));
     glUniformMatrix4fv(shader->getUniform("P"), 1, GL_FALSE, value_ptr(P->topMatrix()));
     glUniformMatrix4fv(shader->getUniform("V"), 1, GL_FALSE, value_ptr(V->topMatrix()));
     glUniform3fv(shader->getUniform("lightPos"), 1, value_ptr(vec3(lightPos)));
@@ -784,10 +790,10 @@ void GameManager::renderGame(int fps) {
         motionBlur->unbindFramebuffer();
         
         /* Trying to Debug FBO */
-        if (FirstTime) {
-            assert(GLTextureWriter::WriteImage(motionBlur->texBuf,"Texture_output.png"));
-            FirstTime = 0;
-        }
+//        if (FirstTime) {
+//            assert(GLTextureWriter::WriteImage(motionBlur->texBuf,"Texture_output.png"));
+//            FirstTime = 0;
+//        }
         
         glViewport(0, 0, width, height);
         postProg->bind();

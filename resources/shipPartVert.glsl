@@ -4,6 +4,7 @@ uniform mat4 P;
 uniform mat4 V;
 uniform mat4 M;
 uniform mat4 LS;
+uniform mat4 prevMVPMatrix;
 
 layout(location = 0) in vec4 aPos;
 layout(location = 1) in vec3 aNor;
@@ -13,6 +14,8 @@ out vec2 vTex;
 out vec3 fragPos;
 out vec3 fragNor;
 out vec4 fragPosLS;
+out vec4 fragPos1;
+out vec4 prevFragPos;
 
 void main()
 {
@@ -24,4 +27,7 @@ void main()
     fragNor = vec3(M * vec4(aNor, 0.0));
     /* frag pos in light space */
     fragPosLS = LS * vec4(fragPos, 1.0);
+    
+    fragPos1 = P * V * M * aPos;
+    prevFragPos = prevMVPMatrix * aPos;
 }

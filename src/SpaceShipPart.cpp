@@ -24,7 +24,11 @@ yOffset(0.0f),
 currTime(0.0f),
 collected(false)
 {
-    
+    auto M = make_shared<MatrixStack>();
+    M->translate(vec3(position.x, position.y + yOffset, position.z));
+    M->rotate(M_PI - atan2(direction.z, direction.x), vec3(0.0f, 1.0f, 0.0f));
+    M->scale(scale);
+    prevM = M;
 }
 
 SpaceShipPart::SpaceShipPart(const vec3 &position, const vec3 &direction,
@@ -36,7 +40,11 @@ yOffset(0.0f),
 currTime(0.0f),
 collected(false)
 {
-    
+    auto M = make_shared<MatrixStack>();
+    M->translate(vec3(position.x, position.y + yOffset, position.z));
+    M->rotate(M_PI - atan2(direction.z, direction.x), vec3(0.0f, 1.0f, 0.0f));
+    M->scale(scale);
+    prevM = M;
 }
 
 SpaceShipPart::~SpaceShipPart()
@@ -58,6 +66,8 @@ void SpaceShipPart::update(float dt)
 
 void SpaceShipPart::draw(const std::shared_ptr<Program> &prog)
 {
+    prevM->print("Before");
+    
     auto M = make_shared<MatrixStack>();
     M->translate(vec3(position.x, position.y + yOffset, position.z));
     M->rotate(M_PI - atan2(direction.z, direction.x), vec3(0.0f, 1.0f, 0.0f));
@@ -65,4 +75,8 @@ void SpaceShipPart::draw(const std::shared_ptr<Program> &prog)
     glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(M->topMatrix()));
     
     shape->draw(prog);
+    
+    prevM = M;
+    
+    prevM->print("After");
 }

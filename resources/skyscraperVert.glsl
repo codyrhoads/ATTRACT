@@ -5,6 +5,7 @@ uniform mat4 V;
 uniform mat4 M;
 uniform vec3 scalingFactor;
 uniform mat4 LS;
+uniform mat4 prevViewProjectionMatrix;
 
 layout(location = 0) in vec4 aPos;
 layout(location = 1) in vec3 aNor;
@@ -19,6 +20,7 @@ out mat3 TBN;
 out vec4 fragPosLS;
 out mat4 viewProjectionInverseMatrix;
 out vec4 fragPos1;
+out vec4 prevFragPos;
 
 float epsilon = 0.00001;
 
@@ -52,4 +54,5 @@ void main()
     viewProjectionInverseMatrix = inverse(P * V);
     
     fragPos1 = P * V * M * aPos;
+    prevFragPos = prevViewProjectionMatrix * M * aPos;
 }

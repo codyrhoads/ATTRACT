@@ -13,6 +13,8 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+class MatrixStack;
+
 class SpaceShipPart: public Cuboid
 {
 public:
@@ -25,7 +27,9 @@ public:
     
     void update(float dt);
     void draw(const std::shared_ptr<Program> &prog);
+    std::shared_ptr<MatrixStack> getPrevM() const { return prevM; }
 protected:
+    std::shared_ptr<MatrixStack> prevM;
     float yOffset;
     float currTime;
     bool collected;

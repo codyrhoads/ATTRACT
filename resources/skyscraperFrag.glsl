@@ -16,26 +16,28 @@ in mat3 TBN;
 in vec4 fragPosLS;
 in mat4 viewProjectionInverseMatrix;
 in vec4 fragPos1;
+in vec4 prevFragPos;
 
 layout (location = 0) out vec4 FragColor;
 layout (location = 1) out vec2 MotionVector;
 
 void calcVelocity()
 {
-    vec3 projCoords = fragPos1.xyz / fragPos1.w;
-    vec3 shift = projCoords * 0.5 + 0.5;
-    float zOverW = texture(cameraDepth, shift.xy).r;
-    //vec2 shift = vTex * 0.5 + 0.5;
-    
-    vec4 H = vec4(shift.x, shift.y, zOverW, 1.0);
-    vec4 D = viewProjectionInverseMatrix * H;
-    vec4 worldPos = D / D.w;
-    
-    vec4 curPos = H;
-    vec4 prevPos = prevViewProjectionMatrix * worldPos;
-    prevPos = prevPos / prevPos.w;
-    
-    MotionVector = (curPos - prevPos).xy;
+//    vec3 projCoords = fragPos1.xyz / fragPos1.w;
+//    vec3 shift = projCoords * 0.5 + 0.5;
+//    float zOverW = texture(cameraDepth, shift.xy).r;
+//    //vec2 shift = vTex * 0.5 + 0.5;
+//    
+//    vec4 H = vec4(shift.x, shift.y, zOverW, 1.0);
+//    vec4 D = viewProjectionInverseMatrix * H;
+//    vec4 worldPos = D / D.w;
+//    
+//    vec4 curPos = H;
+//    vec4 prevPos = prevViewProjectionMatrix * worldPos;
+//    prevPos = prevPos / prevPos.w;
+//    
+//    MotionVector = (curPos - prevPos).xy;
+    MotionVector = ((fragPos1.xyz/fragPos1.w - prevFragPos.xyz/prevFragPos.w).xy + 1) / 2;
 }
 
 /* returns 1 if shadowed */
