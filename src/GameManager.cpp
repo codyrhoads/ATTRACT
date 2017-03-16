@@ -405,8 +405,7 @@ void GameManager::processInputs()
         }
         char str[80];
         cout << "Enter a file name: ";
-        scanf("%73s", str);
-        strcat(str, ".level");
+        scanf("%79s", str);
         ofstream file;
         file.open(LEVEL_DIR + str);
         file << light->toString() << endl << playerSpawn->toString() << endl << spaceshipPart->toString() << endl;
