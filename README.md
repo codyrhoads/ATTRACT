@@ -40,10 +40,12 @@ Down: decrease translation
 
 2: set spaceship part
 
+3: set light
 
-3: toggle magnetic
 
-4: toggle deadly
+4: toggle magnetic
+
+5: toggle deadly
 
 
 Delete: delete currently selected object

@@ -21,10 +21,10 @@ public:
     GameObject();
     GameObject(const glm::vec3 &position, const glm::vec3 &scale, const glm::vec3 &rotation,
                const std::shared_ptr<Shape> &shape,
-               const bool magnetic, const bool deadly, const bool spawnPoint, const bool collectable);
+               const bool magnetic, const bool deadly, const bool spawnPoint, const bool collectable, const bool light);
     virtual ~GameObject();
 
-    std::shared_ptr<Material> createMaterial(bool magnetic, bool deadly, bool spawnPoint, bool collectable);
+    std::shared_ptr<Material> createMaterial(bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light);
     void draw(const std::shared_ptr<Program> &prog);
 
     glm::vec3 getPosition() const {return position;}
@@ -43,7 +43,7 @@ private:
     glm::vec3 position, scale, rotation;
     std::shared_ptr<Shape> shape;
     std::shared_ptr<Material> material;
-    bool magnetic, deadly, spawnPoint, collectable, selected;
+    bool magnetic, deadly, spawnPoint, collectable, light, selected;
 };
 
 #endif /* GameObject_hpp */

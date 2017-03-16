@@ -104,6 +104,9 @@ vector<char> InputManager::processInputs()
     if (Keyboard::isPressed(GLFW_KEY_4)) {
         objectKeys.push_back('4');
     }
+    if (Keyboard::isPressed(GLFW_KEY_5)) {
+        objectKeys.push_back('5');
+    }
     if (Keyboard::isPressed(GLFW_KEY_DELETE)) {
         objectKeys.push_back('X');
     }

@@ -44,6 +44,9 @@
 #define Y_AXIS 1
 #define Z_AXIS 2
 
+#define CUBE 0
+#define SPHERE 1
+
 using namespace std;
 using namespace glm;
 
@@ -115,8 +118,10 @@ shared_ptr<GameObject> GameManager::parseObject(string objectString) {
     bool deadly = toBool(elems[10]);
     bool playerSpawn = toBool(elems[11]);
     bool collectable = toBool(elems[12]);
+    bool light = toBool(elems[13]);
+    int shape = light;
 
-    return createObject(pos, scale, rot, magnetic, deadly, playerSpawn, collectable);
+    return createObject(pos, scale, rot, magnetic, deadly, playerSpawn, collectable, light, shape);
 }
 
 void GameManager::importLevel(string level)
@@ -125,6 +130,9 @@ void GameManager::importLevel(string level)
     ifstream file;
     file.open(level);
     if (file.is_open()) {
+        if (getline(file, line)) {
+            light = parseObject(line);
+        }
         if (getline(file, line)) {
             playerSpawn = parseObject(line);
         }
@@ -179,23 +187,16 @@ void GameManager::initScene()
     
     lightPos = vec4(0.0f, 10.0f, 0.0f, 1.0f);
     lightIntensity = 0.8f;
-    
+
     //
     // Sun
     //
-    sunProg = make_shared<Program>();
-    sunProg->setShaderNames(RESOURCE_DIR + "sunVert.glsl", RESOURCE_DIR + "sunFrag.glsl");
-    sunProg->setVerbose(false);
-    sunProg->init();
-    sunProg->addAttribute("aPos");
-    sunProg->addUniform("MV");
-    sunProg->addUniform("P");
-    
-    sun = make_shared<Shape>();
+    shared_ptr<Shape> sun = make_shared<Shape>();
     sun->loadMesh(RESOURCE_DIR + "sphere.obj");
     sun->fitToUnitBox();
     sun->init();
-    
+    shapes.push_back(sun);
+
     //
     // Grass Texture
     //
@@ -268,9 +269,11 @@ void GameManager::initScene()
     
     GLSL::checkError(GET_FILE_LINE);
 
-    tempObject = createObject(false, false, false, false);
-    playerSpawn = createObject(false, false, true, false);
-    spaceshipPart = createObject(false, false, false, true);
+    tempObject = createObject(false, false, false, false, false, CUBE);
+    playerSpawn = createObject(false, false, true, false, false, CUBE);
+    spaceshipPart = createObject(false, false, false, true, false, CUBE);
+    light = createObject(false, false, false, false, true, SPHERE);
+    light->setPosition(vec3(0.0, 10.0, 0.0));
 }
 
 void GameManager::processInputs()
@@ -304,12 +307,21 @@ void GameManager::processInputs()
         setSpawn = true;
         setCollectable = false;
         objectPlacement = false;
+        setLight = false;
     }
 
     if (find(objectKeys.begin(), objectKeys.end(), '2') != objectKeys.end()) {
         setCollectable = true;
         setSpawn = false;
         objectPlacement = false;
+        setLight = false;
+    }
+
+    if (find(objectKeys.begin(), objectKeys.end(), '3') != objectKeys.end()) {
+        setCollectable = false;
+        setSpawn = false;
+        objectPlacement = false;
+        setLight = true;
     }
 
     shared_ptr<GameObject> obj;
@@ -372,10 +384,10 @@ void GameManager::processInputs()
         obj->setScale(scale);
     }
 
-    if (find(objectKeys.begin(), objectKeys.end(), '3') != objectKeys.end()) {
+    if (find(objectKeys.begin(), objectKeys.end(), '4') != objectKeys.end()) {
         obj->setMagnetic(!obj->getMagnetic());
     }
-    if (find(objectKeys.begin(), objectKeys.end(), '4') != objectKeys.end()) {
+    if (find(objectKeys.begin(), objectKeys.end(), '5') != objectKeys.end()) {
         obj->setDeadly(!obj->getDeadly());
     }
 
@@ -397,7 +409,7 @@ void GameManager::processInputs()
         strcat(str, ".level");
         ofstream file;
         file.open(LEVEL_DIR + str);
-        file << playerSpawn->toString() << endl << spaceshipPart->toString() << endl;
+        file << light->toString() << endl << playerSpawn->toString() << endl << spaceshipPart->toString() << endl;
         for (unsigned int i = 0; i < objects.size(); i++) {
             file << objects.at(i)->toString() << endl;
         }
@@ -457,10 +469,10 @@ void GameManager::renderGame(int fps)
     ground->unbind();
  
     // Render objects
-    if (Mouse::wasLeftMouseClicked() && (objectPlacement || setSpawn || setCollectable)) {
+    if (Mouse::wasLeftMouseClicked() && (objectPlacement || setSpawn || setCollectable || setLight)) {
         if (objectPlacement) {
             objects.push_back(tempObject);
-            tempObject = createObject(false, false, false, false);
+            tempObject = createObject(false, false, false, false, false, CUBE);
             if (currentObject > 0) {
                 currentObject++;
             }
@@ -468,12 +480,15 @@ void GameManager::renderGame(int fps)
             setSpawn = false;
         } else if (setCollectable) {
             setCollectable = false;
+        } else if (setLight) {
+            setLight = false;
         }
         Mouse::clearClick(GLFW_MOUSE_BUTTON_LEFT);
     }
     program->bind();
     glUniformMatrix4fv(program->getUniform("P"), 1, GL_FALSE, value_ptr(P->topMatrix()));
     glUniformMatrix4fv(program->getUniform("MV"), 1, GL_FALSE, value_ptr(MV->topMatrix()));
+    lightPos = vec4(light->getPosition(), 1.0);
     vec4 l = MV->topMatrix() * lightPos;
     glUniform4f(program->getUniform("lightPos"), l[0] , l[1], l[2], l[3]);
     glUniform1f(program->getUniform("lightIntensity"), lightIntensity);
@@ -489,6 +504,10 @@ void GameManager::renderGame(int fps)
         spaceshipPart->setPosition(camera->getPosition() + (2.0f * camera->getForward()));
     }
     spaceshipPart->draw(program);
+    if (setLight) {
+        light->setPosition(camera->getPosition() + (2.0f * camera->getForward()));
+    }
+    light->draw(program);
 
     if (objects.size() > 0 && !objectPlacement && !setSpawn && !setCollectable) {
         objects.at(currentObject)->setSelected(true);
@@ -502,16 +521,6 @@ void GameManager::renderGame(int fps)
     if (objects.size() > 0) {
         objects.at(currentObject)->setSelected(false);
     }
-    
-    // Render sun
-    sunProg->bind();
-    MV->pushMatrix();
-    MV->translate(vec3(0.0f, 10.0f, 0.0f));
-    glUniformMatrix4fv(sunProg->getUniform("P"), 1, GL_FALSE, value_ptr(P->topMatrix()));
-    glUniformMatrix4fv(sunProg->getUniform("MV"), 1, GL_FALSE, value_ptr(MV->topMatrix()));
-    sun->draw(sunProg);
-    MV->popMatrix();
-    sunProg->unbind();
 
     //
     // stb_easy_font.h is used for printing fonts to the screen.
@@ -519,7 +528,7 @@ void GameManager::renderGame(int fps)
     printStringToScreen(0, 0, "+", 0, 0, 0); 
     printStringToScreen(60.0f, -95.0f, to_string(fps) + " FPS", 0.0f, 0.0f, 0.0f);
 
-    if (objects.size() > 0 || objectPlacement || setSpawn || setCollectable) {
+    if (objects.size() > 0 || objectPlacement || setSpawn || setCollectable || setLight) {
         shared_ptr<GameObject> obj;
         if (objectPlacement) {
             obj = tempObject;
@@ -527,6 +536,8 @@ void GameManager::renderGame(int fps)
             obj = playerSpawn;
         } else if (setCollectable) {
             obj = spaceshipPart;
+        } else if (setLight) {
+            obj = light;
         } else {
             obj = objects.at(currentObject);
         }
@@ -543,6 +554,8 @@ void GameManager::renderGame(int fps)
             printStringToScreen(-95.0f, -95.0f, "Object: Spawn", 0.0f, 0.0f, 0.0f);
         } else if (setCollectable) {
             printStringToScreen(-95.0f, -95.0f, "Object: Spaceship Part", 0.0f, 0.0f, 0.0f);
+        } else if (setLight) {
+            printStringToScreen(-95.0f, -95.0f, "Object: Light", 0.0f, 0.0f, 0.0f);
         } else {
             printStringToScreen(-95.0f, -95.0f, "Object: " + to_string(currentObject + 1) + " / " + to_string(objects.size()), 0.0f, 0.0f, 0.0f);
         }
@@ -560,14 +573,14 @@ void GameManager::resize_callback(GLFWwindow *window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-shared_ptr<GameObject> GameManager::createObject(vec3 position, vec3 scale, vec3 rotation, bool magnetic, bool deadly, bool spawnPoint, bool collectable)
+shared_ptr<GameObject> GameManager::createObject(vec3 position, vec3 scale, vec3 rotation, bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, int shape)
 {
-    return make_shared<GameObject>(position, scale, rotation, shapes.at(0), magnetic, deadly, spawnPoint, collectable);
+    return make_shared<GameObject>(position, scale, rotation, shapes.at(shape), magnetic, deadly, spawnPoint, collectable, light);
 }
 
-shared_ptr<GameObject> GameManager::createObject(bool magnetic, bool deadly, bool spawnPoint, bool collectable)
+shared_ptr<GameObject> GameManager::createObject(bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, int shape)
 {
-    return createObject(vec3(0.0f, 0.0f, 0.0f), vec3(1.0f, 1.0f, 1.0f), vec3(0.0f, 0.0f, 0.0f), magnetic, deadly, spawnPoint, collectable);
+    return createObject(vec3(0.0f, 0.0f, 0.0f), vec3(1.0f, 1.0f, 1.0f), vec3(0.0f, 0.0f, 0.0f), magnetic, deadly, spawnPoint, collectable, light, shape);
 }
 
 void GameManager::printStringToScreen(float x, float y, const string &text, float r, float g, float b)
