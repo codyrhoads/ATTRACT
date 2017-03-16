@@ -5,10 +5,9 @@ out vec4 FragColor;
 uniform sampler2D colorBuf;
 uniform sampler2D motionVectors;
 
-void main()
-{
+void main() {
     vec4 color = vec4(0.0);
-    vec2 motionV = texture(motionVectors, texCoord).xy / 30.0;
+    vec2 motionV = texture(motionVectors, texCoord).xy / 10.0;
 
     vec2 texCoord0 = texCoord;
     color += texture(colorBuf, texCoord0) * 0.4;

@@ -780,7 +780,7 @@ void GameManager::renderGame(int fps) {
         skybox->render(P, V, prevViewProjectionMatrix, cameraDepth);
         drawScene(P, V, ACTUAL);
         drawShipPart(P, V, ACTUAL);
-        drawMagnetGun(P, V, ACTUAL);
+//        drawMagnetGun(P, V, ACTUAL);
         motionBlur->unbindFramebuffer();
         
         /* Trying to Debug FBO */
@@ -790,7 +790,6 @@ void GameManager::renderGame(int fps) {
         }
         
         glViewport(0, 0, width, height);
-        glDisable(GL_DEPTH_TEST);
         postProg->bind();
         motionBlur->setTexUnit(0);
         motionBlur->bindTex(postProg->getUniform("colorBuf"));
@@ -800,6 +799,9 @@ void GameManager::renderGame(int fps) {
         motionBlur->unbindMotion();
         motionBlur->unbindTex();
         postProg->unbind();
+        
+        glEnable(GL_DEPTH_TEST);
+        drawMagnetGun(P, V, ACTUAL);
         
         if (SHADOW_DEBUG) {
             glClear(GL_DEPTH_BUFFER_BIT);
