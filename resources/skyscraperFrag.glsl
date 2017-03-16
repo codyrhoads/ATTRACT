@@ -4,6 +4,8 @@ uniform sampler2D diffuseTex;
 uniform sampler2D specularTex;
 uniform sampler2D normalTex;
 uniform sampler2D shadowDepth;
+uniform sampler2D cameraDepth;
+uniform mat4 prevViewProjectionMatrix;
 uniform vec3 lightPos;
 uniform vec3 viewPos;
 
@@ -12,8 +14,29 @@ in vec3 fragPos;
 in vec3 fragNor;
 in mat3 TBN;
 in vec4 fragPosLS;
+in mat4 viewProjectionInverseMatrix;
+in vec4 fragPos1;
 
-out vec4 FragColor;
+layout (location = 0) out vec4 FragColor;
+layout (location = 1) out vec2 MotionVector;
+
+void calcVelocity()
+{
+    vec3 projCoords = fragPos1.xyz / fragPos1.w;
+    vec3 shift = projCoords * 0.5 + 0.5;
+    float zOverW = texture(cameraDepth, shift.xy).r;
+    //vec2 shift = vTex * 0.5 + 0.5;
+    
+    vec4 H = vec4(shift.x, shift.y, zOverW, 1.0);
+    vec4 D = viewProjectionInverseMatrix * H;
+    vec4 worldPos = D / D.w;
+    
+    vec4 curPos = H;
+    vec4 prevPos = prevViewProjectionMatrix * worldPos;
+    prevPos = prevPos / prevPos.w;
+    
+    MotionVector = (curPos - prevPos).xy;
+}
 
 /* returns 1 if shadowed */
 /* called with the point projected into the light's coordinate space */
@@ -78,4 +101,7 @@ void main()
         
         FragColor = vec4(lighting, 1.0f);
     }
+    
+    // Calculating the motion velocities
+    calcVelocity();
 }

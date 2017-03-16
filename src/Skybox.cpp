@@ -11,6 +11,7 @@
 #include "TextureCube.h"
 #include "MatrixStack.h"
 #include "Shape.h"
+#include "DepthExtractor.hpp"
 #include "GLSL.h"
 
 #include <glm/gtc/type_ptr.hpp>
@@ -30,6 +31,8 @@ Skybox::Skybox(const string &resourceDir, const shared_ptr<Shape> &skyShape) {
     prog->addUniform("V");
     prog->addUniform("M");
     prog->addUniform("cubemap");
+    prog->addUniform("cameraDepth");
+    prog->addUniform("prevViewProjectionMatrix");
     GLSL::checkError();
     
     shape = skyShape;
@@ -55,19 +58,29 @@ Skybox::~Skybox()
     
 }
 
-void Skybox::render(shared_ptr<MatrixStack> &P, shared_ptr<MatrixStack> &V)
+void Skybox::render(shared_ptr<MatrixStack> &P, shared_ptr<MatrixStack> &V,
+                    shared_ptr<MatrixStack> &prevVP,
+                    shared_ptr<DepthExtractor> &cameraDepth)
 {
     shared_ptr<MatrixStack> M = make_shared<MatrixStack>();
     prog->bind();
     tc->bind(prog->getUniform("cubemap"));
+    GLSL::checkError();
+    cameraDepth->setUnit(1);
+    GLSL::checkError();
+    cameraDepth->bind(prog->getUniform("cameraDepth"));
+    GLSL::checkError();
     M->pushMatrix();
     M->loadIdentity();
     M->scale(500.0f);
+    glUniformMatrix4fv(prog->getUniform("prevViewProjectionMatrix"), 1, GL_FALSE, value_ptr(prevVP->topMatrix()));
+    GLSL::checkError();
     glUniformMatrix4fv(prog->getUniform("P"), 1, GL_FALSE, value_ptr(P->topMatrix()));
     glUniformMatrix4fv(prog->getUniform("V"), 1, GL_FALSE, value_ptr(V->topMatrix()));
     glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(M->topMatrix()));
     shape->draw(prog);
     M->popMatrix();
+    cameraDepth->unbind();
     tc->unbind();
     prog->unbind();
 }

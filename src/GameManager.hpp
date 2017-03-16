@@ -31,12 +31,17 @@ class SpaceShipPart;
 class ParticleManager;
 class Skybox;
 class MatrixStack;
-class ShadowManager;
+class DepthExtractor;
+class MotionBlur;
 
 class GuiManager;
 
 enum State {
     GAME, MENU, PAUSE, DEATH, WIN
+};
+
+enum Pass {
+    ACTUAL, SHADOW_DEPTH, CAMERA_DEPTH
 };
 
 #define BLUE 1
@@ -79,13 +84,17 @@ private:
     bool toBool(std::string s);
     void drawScene(std::shared_ptr<MatrixStack> P,
                    std::shared_ptr<MatrixStack> V,
-                   bool depthBufferPass);
+                   Pass passType);
     void drawShipPart(std::shared_ptr<MatrixStack> P,
                       std::shared_ptr<MatrixStack> V,
-                      bool depthBufferPass);
+                      Pass passType);
     void drawMagnetGun(std::shared_ptr<MatrixStack> P,
                        std::shared_ptr<MatrixStack> V,
-                       bool depthBufferPass);
+                       Pass passType);
+    void renderPass(std::shared_ptr<MatrixStack> P,
+                    std::shared_ptr<MatrixStack> V);
+    void motionBlurPass(std::shared_ptr<MatrixStack> P,
+                        std::shared_ptr<MatrixStack> V);
 
 
     GLFWwindow *window;
@@ -95,8 +104,9 @@ private:
     std::shared_ptr<BulletManager> bullet;
     std::shared_ptr<VfcManager> vfc;
     std::shared_ptr<FmodManager> fmod;
-    std::shared_ptr<ShadowManager> shadowManager;
+    std::shared_ptr<DepthExtractor> shadowDepth, cameraDepth;
     std::shared_ptr<InputManager> inputManager;
+    std::shared_ptr<MotionBlur> motionBlur;
 
     std::shared_ptr<GuiManager> gui;
     std::shared_ptr<ParticleManager> psystem;
@@ -122,7 +132,7 @@ private:
     std::shared_ptr<Camera> camera;
 
     std::shared_ptr<Program> program, shipPartProgram, skyscraperProgram,
-        depthProg, depthDebugProg;
+        shadowDepthProg, cameraDepthProg, depthDebugProg, postProg;
     std::shared_ptr<Texture> shipPartColorTexture, shipPartSpecularTexture,
         skyscraperColorTexture, skyscraperSpecularTexture;
     std::map<std::string, std::shared_ptr<Shape>> shapes;
@@ -134,6 +144,7 @@ private:
     glm::vec4 lightPos;
     float lightIntensity;
     glm::mat4 LSpace;
+    std::shared_ptr<MatrixStack> prevViewProjectionMatrix;
 
 };
 

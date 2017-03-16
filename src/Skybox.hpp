@@ -16,6 +16,7 @@ class MatrixStack;
 class TextureCube;
 class Program;
 class Shape;
+class DepthExtractor;
 
 class Skybox
 {
@@ -25,7 +26,9 @@ public:
     virtual ~Skybox();
     
     void render(std::shared_ptr<MatrixStack> &P,
-                std::shared_ptr<MatrixStack> &V);
+                std::shared_ptr<MatrixStack> &V,
+                std::shared_ptr<MatrixStack> &prevVP,
+                std::shared_ptr<DepthExtractor> &cameraDepth);
 private:
     std::shared_ptr<TextureCube> tc;
     std::shared_ptr<Program> prog;

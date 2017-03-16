@@ -259,9 +259,11 @@ void Shape::draw(const shared_ptr<Program> prog) const {
 
         // Bind element buffer
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eleBufID[i]);
+        GLSL::checkError();
 
         // Draw
         glDrawElements(GL_TRIANGLES, (int) eleBufs[i].size(), GL_UNSIGNED_INT, (const void *) 0);
+        GLSL::checkError();
         
         if (i < diffuseTextures.size() && diffuseTexNameBuf[i] != "") {
             diffuseTextures[i]->unbind();
@@ -270,6 +272,7 @@ void Shape::draw(const shared_ptr<Program> prog) const {
             normalTextures[i]->unbind();
         }
     }
+    GLSL::checkError();
 
     // Disable and unbind
     if (h_tex != -1) {

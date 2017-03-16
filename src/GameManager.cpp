@@ -40,19 +40,25 @@
 #include "VfcManager.hpp"
 #include "SpaceShipPart.hpp"
 #include "Skybox.hpp"
-#include "ShadowManager.hpp"
+#include "DepthExtractor.hpp"
+#include "MotionBlur.hpp"
 #include <fstream>
 
 #include "GuiManager.hpp"
 #include "ParticleManager.hpp"
 
+#include "GLTextureWriter.hpp"
+
 #include "KDTree.hpp"
 #include "BVH.hpp"
 
 #define SHADOW_DEBUG 0
+#define CAMERA_DEPTH_DEBUG 0
 #define MAGNET_RANGE 13.0f
 #define MAGNET_STRENGTH 7.0f
 #define CUBE_HALF_EXTENTS vec3(0.5f, 0.5f, 0.5f)
+
+int FirstTime = 1;
 
 using namespace std;
 using namespace glm;
@@ -87,8 +93,16 @@ colorBeam(ORANGE) {
     gui = make_shared<GuiManager>(RESOURCE_DIR);
     psystem = make_shared<ParticleManager>(RESOURCE_DIR);
     
-    shadowManager = make_shared<ShadowManager>();
-    shadowManager->init();
+    shadowDepth = make_shared<DepthExtractor>();
+    shadowDepth->init();
+    
+    cameraDepth = make_shared<DepthExtractor>();
+    cameraDepth->init();
+    
+    motionBlur = make_shared<MotionBlur>();
+    motionBlur->init();
+    
+    prevViewProjectionMatrix = make_shared<MatrixStack>();
     
     // Initialize the scene.
     initScene();
@@ -127,6 +141,7 @@ void GameManager::initScene() {
     program->addUniform("s");
     program->addUniform("viewPos");
     program->addUniform("shadowDepth");
+    program->addUniform("cameraDepth");
     program->addUniform("LS");
 
     //
@@ -152,7 +167,9 @@ void GameManager::initScene() {
     skyscraperProgram->addUniform("lightIntensity");
     skyscraperProgram->addUniform("scalingFactor");
     skyscraperProgram->addUniform("shadowDepth");
+    skyscraperProgram->addUniform("cameraDepth");
     skyscraperProgram->addUniform("LS");
+    skyscraperProgram->addUniform("prevViewProjectionMatrix");
 
     //
     // Ship Parts
@@ -174,6 +191,7 @@ void GameManager::initScene() {
     shipPartProgram->addUniform("lightPos");
     shipPartProgram->addUniform("viewPos");
     shipPartProgram->addUniform("shadowDepth");
+    shipPartProgram->addUniform("cameraDepth");
     shipPartProgram->addUniform("LS");
 
     shipPartColorTexture = make_shared<Texture>();
@@ -186,6 +204,18 @@ void GameManager::initScene() {
     shipPartSpecularTexture->init();
     shipPartSpecularTexture->setUnit(1);
     shipPartSpecularTexture->setWrapModes(GL_REPEAT, GL_REPEAT);
+    
+    //
+    // Post-processing shader (used for motion blur)
+    //
+    postProg = make_shared<Program>();
+    postProg->setVerbose(true);
+    postProg->setShaderNames(RESOURCE_DIR + "postVert.glsl", RESOURCE_DIR + "postFrag.glsl");
+    postProg->init();
+    
+    postProg->addUniform("colorBuf");
+    postProg->addUniform("motionVectors");
+    postProg->addAttribute("aPos");
 
     //
     // Loading obj files
@@ -227,21 +257,38 @@ void GameManager::initScene() {
     temp->init();
     shapes.insert(make_pair("sphere", temp));
     
-    /* Shadow stuff */
+    /* Depth Buffer Stuff */
+    
+    // Depth buffer from camera view
     // Initialize the GLSL programs
-    depthProg = make_shared<Program>();
-    depthProg->setVerbose(false);
-    depthProg->setShaderNames(RESOURCE_DIR + "depthVert.glsl", RESOURCE_DIR + "depthFrag.glsl");
-    depthProg->init();
+    cameraDepthProg = make_shared<Program>();
+    cameraDepthProg->setVerbose(false);
+    cameraDepthProg->setShaderNames(RESOURCE_DIR + "cameraDepthVert.glsl", RESOURCE_DIR + "depthFrag.glsl");
+    cameraDepthProg->init();
     
-    depthProg->addUniform("LS");
-    depthProg->addUniform("M");
-    depthProg->addAttribute("aPos");
+    cameraDepthProg->addUniform("P");
+    cameraDepthProg->addUniform("V");
+    cameraDepthProg->addUniform("M");
+    cameraDepthProg->addAttribute("aPos");
     //un-needed, but easier then modifying shape
-    depthProg->addAttribute("aNor");
-    depthProg->addAttribute("aTex");
+    cameraDepthProg->addAttribute("aNor");
+    cameraDepthProg->addAttribute("aTex");
     
-    if (SHADOW_DEBUG) {
+    // Shadow stuff
+    // Initialize the GLSL programs
+    shadowDepthProg = make_shared<Program>();
+    shadowDepthProg->setVerbose(false);
+    shadowDepthProg->setShaderNames(RESOURCE_DIR + "shadowDepthVert.glsl", RESOURCE_DIR + "depthFrag.glsl");
+    shadowDepthProg->init();
+    
+    shadowDepthProg->addUniform("LS");
+    shadowDepthProg->addUniform("M");
+    shadowDepthProg->addAttribute("aPos");
+    //un-needed, but easier then modifying shape
+    shadowDepthProg->addAttribute("aNor");
+    shadowDepthProg->addAttribute("aTex");
+    
+    if (SHADOW_DEBUG || CAMERA_DEPTH_DEBUG) {
         depthDebugProg = make_shared<Program>();
         depthDebugProg->setVerbose(false);
         depthDebugProg->setShaderNames(RESOURCE_DIR + "depthDebugVert.glsl", RESOURCE_DIR + "depthDebugFrag.glsl");
@@ -255,6 +302,7 @@ void GameManager::initScene() {
     // Make Skybox
     //
     skybox = make_shared<Skybox>(RESOURCE_DIR, shapes["sphere"]);
+    
 
     lightPos = vec4(4.0f, 15.0f, 4.0f, 0.0f);
     lightIntensity = 0.6f;
@@ -483,12 +531,16 @@ void GameManager::updateGame(double dt) {
 }
 
 void GameManager::drawScene(shared_ptr<MatrixStack> P, shared_ptr<MatrixStack> V,
-                            bool depthBufferPass)
+                            Pass passType)
 {
     shared_ptr<Program> shaderMagnet, shaderBuilding;
-    if (depthBufferPass) {
-        shaderMagnet = depthProg;
-        shaderBuilding = depthProg;
+    if (passType == SHADOW_DEPTH) {
+        shaderMagnet = shadowDepthProg;
+        shaderBuilding = shadowDepthProg;
+    }
+    else if (passType == CAMERA_DEPTH) {
+        shaderMagnet = cameraDepthProg;
+        shaderBuilding = cameraDepthProg;
     }
     else {
         shaderMagnet = program;
@@ -500,11 +552,11 @@ void GameManager::drawScene(shared_ptr<MatrixStack> P, shared_ptr<MatrixStack> V
         if (objects.at(i)->isCuboid()) {
             std::shared_ptr<Cuboid> cub = dynamic_pointer_cast<Cuboid>(objects.at(i));
             std::vector<vec3> *temp = cub->getAabbMinsMaxs();
-            if (!vfc->viewFrustCull(temp) || depthBufferPass) {
+            if (!vfc->viewFrustCull(temp) || passType == SHADOW_DEPTH) {
                 if (cub->isMagnetic()) {
                     shaderMagnet->bind();
-                    shadowManager->setUnit(3);
-                    shadowManager->bind(shaderMagnet->getUniform("shadowDepth"));
+                    shadowDepth->setUnit(3);
+                    shadowDepth->bind(shaderMagnet->getUniform("shadowDepth"));
                     glUniformMatrix4fv(shaderMagnet->getUniform("LS"), 1, GL_FALSE, value_ptr(LSpace));
                     glUniformMatrix4fv(shaderMagnet->getUniform("P"), 1, GL_FALSE, value_ptr(P->topMatrix()));
                     glUniformMatrix4fv(shaderMagnet->getUniform("V"), 1, GL_FALSE, value_ptr(V->topMatrix()));
@@ -512,12 +564,15 @@ void GameManager::drawScene(shared_ptr<MatrixStack> P, shared_ptr<MatrixStack> V
                     glUniform3fv(shaderMagnet->getUniform("viewPos"), 1, value_ptr(camera->getPosition()));
                     glUniform1f(shaderMagnet->getUniform("lightIntensity"), lightIntensity);
                     cub->draw(shaderMagnet);
-                    shadowManager->unbind();
+                    shadowDepth->unbind();
                     shaderMagnet->unbind();
                 } else {
                     shaderBuilding->bind();
-                    shadowManager->setUnit(3);
-                    shadowManager->bind(shaderBuilding->getUniform("shadowDepth"));
+                    shadowDepth->setUnit(3);
+                    shadowDepth->bind(shaderBuilding->getUniform("shadowDepth"));
+                    cameraDepth->setUnit(4);
+                    cameraDepth->bind(shaderBuilding->getUniform("cameraDepth"));
+                    glUniformMatrix4fv(shaderBuilding->getUniform("prevViewProjectionMatrix"), 1, GL_FALSE, value_ptr(prevViewProjectionMatrix->topMatrix()));
                     glUniformMatrix4fv(shaderBuilding->getUniform("LS"), 1, GL_FALSE, value_ptr(LSpace));
                     glUniformMatrix4fv(shaderBuilding->getUniform("P"), 1, GL_FALSE, value_ptr(P->topMatrix()));
                     glUniformMatrix4fv(shaderBuilding->getUniform("V"), 1, GL_FALSE, value_ptr(V->topMatrix()));
@@ -526,7 +581,8 @@ void GameManager::drawScene(shared_ptr<MatrixStack> P, shared_ptr<MatrixStack> V
                     glUniform1f(shaderBuilding->getUniform("lightIntensity"), lightIntensity);
                     glUniform3fv(shaderBuilding->getUniform("scalingFactor"), 1, value_ptr(cub->getScale()));
                     cub->draw(shaderBuilding);
-                    shadowManager->unbind();
+                    cameraDepth->unbind();
+                    shadowDepth->unbind();
                     shaderBuilding->unbind();
                 }
             }
@@ -538,11 +594,14 @@ void GameManager::drawScene(shared_ptr<MatrixStack> P, shared_ptr<MatrixStack> V
 
 void GameManager::drawShipPart(shared_ptr<MatrixStack> P,
                                shared_ptr<MatrixStack> V,
-                               bool depthBufferPass)
+                               Pass passType)
 {
     std::shared_ptr<Program> shader;
-    if (depthBufferPass) {
-        shader = depthProg;
+    if (passType == SHADOW_DEPTH) {
+        shader = shadowDepthProg;
+    }
+    else if (passType == CAMERA_DEPTH) {
+        shader = cameraDepthProg;
     }
     else {
         shader = shipPartProgram;
@@ -550,8 +609,8 @@ void GameManager::drawShipPart(shared_ptr<MatrixStack> P,
     
     // Draw ship part
     shader->bind();
-    shadowManager->setUnit(3);
-    shadowManager->bind(shader->getUniform("shadowDepth"));
+    shadowDepth->setUnit(3);
+    shadowDepth->bind(shader->getUniform("shadowDepth"));
     glUniformMatrix4fv(shader->getUniform("LS"), 1, GL_FALSE, value_ptr(LSpace));
     shipPartColorTexture->bind(shader->getUniform("diffuseTex"));
     shipPartSpecularTexture->bind(shader->getUniform("specularTex"));
@@ -567,11 +626,14 @@ void GameManager::drawShipPart(shared_ptr<MatrixStack> P,
 
 void GameManager::drawMagnetGun(shared_ptr<MatrixStack> P,
                                 shared_ptr<MatrixStack> V,
-                                bool depthBufferPass)
+                                Pass passType)
 {
     shared_ptr<Program> shader;
-    if (depthBufferPass) {
-        shader = depthProg;
+    if (passType == SHADOW_DEPTH) {
+        shader = shadowDepthProg;
+    }
+    else if (passType == CAMERA_DEPTH) {
+        shader = cameraDepthProg;
     }
     else {
         shader = program;
@@ -579,19 +641,19 @@ void GameManager::drawMagnetGun(shared_ptr<MatrixStack> P,
     
     // Render magnet gun
     shader->bind();
-    shadowManager->setUnit(3);
-    shadowManager->bind(shader->getUniform("shadowDepth"));
+    shadowDepth->setUnit(3);
+    shadowDepth->bind(shader->getUniform("shadowDepth"));
     glUniformMatrix4fv(shader->getUniform("P"), 1, GL_FALSE, value_ptr(P->topMatrix()));
     glUniform3fv(shader->getUniform("lightPos"), 1, value_ptr(vec3(lightPos)));
     glUniform1f(shader->getUniform("lightIntensity"), lightIntensity);
     V->pushMatrix();
     V->loadIdentity();
     glUniformMatrix4fv(shader->getUniform("V"), 1, GL_FALSE, value_ptr(V->topMatrix()));
-    if (!depthBufferPass) {
+    if (passType == ACTUAL) {
         glClear(GL_DEPTH_BUFFER_BIT);
     }
     magnetGun->draw(shader);
-    shadowManager->unbind();
+    shadowDepth->unbind();
     V->popMatrix();
     
     if (drawBeam) {
@@ -673,49 +735,103 @@ void GameManager::renderGame(int fps) {
         camera->applyProjectionMatrix(P);
         V->pushMatrix();
         camera->applyViewMatrix(V);
+        
+        if (FirstTime) {
+            prevViewProjectionMatrix->loadIdentity();
+            prevViewProjectionMatrix->multMatrix(P->topMatrix());
+            prevViewProjectionMatrix->multMatrix(V->topMatrix());
+        }
 
-        /* BEGIN DEPTH MAP */
-        shadowManager->bindFramebuffer();
+        /* BEGIN SHADOW DEPTH */
+        shadowDepth->bindFramebuffer();
         //set up shadow shader
-        depthProg->bind();
+        shadowDepthProg->bind();
         mat4 LO = SetOrthoMatrix();
         mat4 LV = SetLightView(vec3(lightPos), vec3(0), vec3(0, 1, 0));
         LSpace = LO*LV;
-        glUniformMatrix4fv(depthProg->getUniform("LS"), 1, GL_FALSE, value_ptr(LSpace));
+        glUniformMatrix4fv(shadowDepthProg->getUniform("LS"), 1, GL_FALSE, value_ptr(LSpace));
         
-        drawScene(P, V, true);
-        drawShipPart(P, V, true);
+        drawScene(P, V, SHADOW_DEPTH);
+        drawShipPart(P, V, SHADOW_DEPTH);
         //drawMagnetGun(P, V, true);
         
-        depthProg->unbind();
-        shadowManager->unbindFramebuffer();
-        /* END DEPTH MAP */
+        shadowDepthProg->unbind();
+        shadowDepth->unbindFramebuffer();
+        /* END SHADOW DEPTH */
+        
+        /* BEGIN CAMERA DEPTH */
+        cameraDepth->bindFramebuffer();
+        //set up shadow shader
+        cameraDepthProg->bind();
+        
+        drawScene(P, V, CAMERA_DEPTH);
+        drawShipPart(P, V, CAMERA_DEPTH);
+        //drawMagnetGun(P, V, true);
+        
+        cameraDepthProg->unbind();
+        cameraDepth->unbindFramebuffer();
+        /* END CAMERA DEPTH */
         
         glViewport(0, 0, width, height);
         // Clear framebuffer.
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        skybox->render(P, V);
-        drawScene(P, V, false);
-        drawShipPart(P, V, false);
-        drawMagnetGun(P, V, false);
-        if (gameState != PAUSE) {
-            gui->drawHUD(camera->isLookingAtMagnet(), Mouse::isLeftMouseButtonPressed(), Mouse::isRightMouseButtonPressed());
+        motionBlur->bindFramebuffer();
+        skybox->render(P, V, prevViewProjectionMatrix, cameraDepth);
+        drawScene(P, V, ACTUAL);
+        drawShipPart(P, V, ACTUAL);
+        drawMagnetGun(P, V, ACTUAL);
+        motionBlur->unbindFramebuffer();
+        
+        /* Trying to Debug FBO */
+        if (FirstTime) {
+            assert(GLTextureWriter::WriteImage(motionBlur->texBuf,"Texture_output.png"));
+            FirstTime = 0;
         }
         
+        glViewport(0, 0, width, height);
+        glDisable(GL_DEPTH_TEST);
+        postProg->bind();
+        motionBlur->setTexUnit(0);
+        motionBlur->bindTex(postProg->getUniform("colorBuf"));
+        motionBlur->setMotionUnit(1);
+        motionBlur->bindMotion(postProg->getUniform("motionVectors"));
+        motionBlur->draw();
+        motionBlur->unbindMotion();
+        motionBlur->unbindTex();
+        postProg->unbind();
+        
         if (SHADOW_DEBUG) {
-            glClear( GL_DEPTH_BUFFER_BIT);
+            glClear(GL_DEPTH_BUFFER_BIT);
             glViewport(0, 0, 500, 500);
             depthDebugProg->bind();
-            shadowManager->setUnit(3);
-            shadowManager->bind(depthDebugProg->getUniform("texBuf"));
-            shadowManager->drawDebug();
+            shadowDepth->setUnit(0);
+            shadowDepth->bind(depthDebugProg->getUniform("texBuf"));
+            shadowDepth->drawDebug();
+            depthDebugProg->unbind();
+            glViewport(0, 0, width, height);
+        }
+        else if (CAMERA_DEPTH_DEBUG) {
+            glClear(GL_DEPTH_BUFFER_BIT);
+            glViewport(0, 0, 500, 500);
+            depthDebugProg->bind();
+            cameraDepth->setUnit(0);
+            cameraDepth->bind(depthDebugProg->getUniform("texBuf"));
+            cameraDepth->drawDebug();
             depthDebugProg->unbind();
             glViewport(0, 0, width, height);
         }
         
+        prevViewProjectionMatrix->loadIdentity();
+        prevViewProjectionMatrix->multMatrix(P->topMatrix());
+        prevViewProjectionMatrix->multMatrix(V->topMatrix());
+        
         V->popMatrix();
         P->popMatrix();
+        
+        if (gameState != PAUSE) {
+            gui->drawHUD(camera->isLookingAtMagnet(), Mouse::isLeftMouseButtonPressed(), Mouse::isRightMouseButtonPressed());
+        }
         
         if (gameState == PAUSE) {
             gui->drawPause(level);

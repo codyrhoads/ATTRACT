@@ -17,6 +17,8 @@ out vec3 fragPos;
 out vec3 fragNor;
 out mat3 TBN;
 out vec4 fragPosLS;
+out mat4 viewProjectionInverseMatrix;
+out vec4 fragPos1;
 
 float epsilon = 0.00001;
 
@@ -46,4 +48,8 @@ void main()
     fragPosLS = LS * vec4(fragPos, 1.0);
     /* frag position in view */
     fragPos = vec3(V * M * aPos);
+    /* inverse of the view-projection matrix */
+    viewProjectionInverseMatrix = inverse(P * V);
+    
+    fragPos1 = P * V * M * aPos;
 }

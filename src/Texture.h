@@ -46,6 +46,7 @@ public:
     void unbind();
     void setWrapModes(GLint wrapS, GLint wrapT); // Must be called after init()
     void loadDDS(const char * imagepath);
+    GLint getID() const { return tid;}
 private:
     std::string filename;
     int width;

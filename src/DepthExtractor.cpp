@@ -1,24 +1,24 @@
 //
-//  ShadowManager.cpp
+//  DepthExtractor.cpp
 //  ATTRACT
 //
 //  Created by Cody Rhoads on 3/10/17.
 //
 //
 
-#include "ShadowManager.hpp"
+#include "DepthExtractor.hpp"
 
-ShadowManager::ShadowManager()
+DepthExtractor::DepthExtractor()
 {
     
 }
 
-ShadowManager::~ShadowManager()
+DepthExtractor::~DepthExtractor()
 {
     
 }
 
-void ShadowManager::init()
+void DepthExtractor::init()
 {
     // Set up for debugging.
     glGenVertexArrays(1, &quad_VertexArrayID);
@@ -43,7 +43,7 @@ void ShadowManager::init()
     //generate the texture
     glGenTextures(1, &depthMap);
     glBindTexture(GL_TEXTURE_2D, depthMap);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT,
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, WIDTH, HEIGHT,
                  0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -59,32 +59,32 @@ void ShadowManager::init()
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void ShadowManager::bindFramebuffer()
+void DepthExtractor::bindFramebuffer()
 {
-    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+    glViewport(0, 0, WIDTH, HEIGHT);
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
     glClear(GL_DEPTH_BUFFER_BIT);
 }
 
-void ShadowManager::unbindFramebuffer()
+void DepthExtractor::unbindFramebuffer()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void ShadowManager::bind(GLint handle)
+void DepthExtractor::bind(GLint handle)
 {
     glActiveTexture(GL_TEXTURE0 + unit);
     glBindTexture(GL_TEXTURE_2D, depthMap);
     glUniform1i(handle, unit);
 }
 
-void ShadowManager::unbind()
+void DepthExtractor::unbind()
 {
     glActiveTexture(GL_TEXTURE0 + unit);
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void ShadowManager::drawDebug()
+void DepthExtractor::drawDebug()
 {
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);

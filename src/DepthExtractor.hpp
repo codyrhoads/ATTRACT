@@ -1,22 +1,22 @@
 //
-//  ShadowManager.hpp
+//  DepthExtractor.hpp
 //  ATTRACT
 //
 //  Created by Cody Rhoads on 3/10/17.
 //
 //
 
-#ifndef ShadowManager_hpp
-#define ShadowManager_hpp
+#ifndef DepthExtractor_hpp
+#define DepthExtractor_hpp
 
 #define GLEW_STATIC
 #include <GL/glew.h>
 
-class ShadowManager
+class DepthExtractor
 {
 public:
-    ShadowManager();
-    virtual ~ShadowManager();
+    DepthExtractor();
+    virtual ~DepthExtractor();
     void init();
     void bindFramebuffer();         // used when creating the texture
     void unbindFramebuffer();
@@ -30,11 +30,11 @@ public:
 private:
     GLint unit;
     GLuint depthMapFBO;
-    const GLuint SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+    const GLuint WIDTH = 1024, HEIGHT = 1024;
     GLuint depthMap;
     //geometry for texture render
     GLuint quad_VertexArrayID;
     GLuint quad_vertexbuffer;
 };
 
-#endif /* ShadowManager_hpp */
+#endif /* DepthExtractor_hpp */
