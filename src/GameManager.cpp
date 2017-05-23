@@ -452,7 +452,7 @@ void GameManager::renderGame(int fps)
     camera->applyViewMatrix(MV);
     
     // Render ground
-    ground->bind();
+    /*ground->bind();
     grass->bind(ground->getUniform("grassTexture"));
     glUniformMatrix4fv(ground->getUniform("P"), 1, GL_FALSE, value_ptr(P->topMatrix()));
     glUniformMatrix4fv(ground->getUniform("MV"), 1, GL_FALSE, value_ptr(MV->topMatrix()));
@@ -465,7 +465,7 @@ void GameManager::renderGame(int fps)
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, grassBufIDs["bInd"]);
     glDrawElements(GL_TRIANGLES, grassIndCount, GL_UNSIGNED_INT, (void *)0);
     grass->unbind();
-    ground->unbind();
+    ground->unbind();*/
  
     // Render objects
     if (Mouse::wasLeftMouseClicked() && (objectPlacement || setSpawn || setCollectable || setLight)) {
