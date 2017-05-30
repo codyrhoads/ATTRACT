@@ -47,5 +47,16 @@ Down: decrease translation
 
 5: toggle deadly
 
+8: toggle moving
+
+============== for movable objects ==============
+
+9: decrease movement speed
+
+0: increase movement speed
+
+Left Control: Move the 2nd position instead of the first
+
+=================================================
 
 Delete: delete currently selected object

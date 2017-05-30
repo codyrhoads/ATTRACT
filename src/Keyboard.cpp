@@ -40,7 +40,8 @@ void Keyboard::key_callback(GLFWwindow *window, int key, int scancode, int actio
 bool Keyboard::isPressed(unsigned int key)
 {
     if (key == GLFW_KEY_P || key == GLFW_KEY_J || key == GLFW_KEY_K || key == GLFW_KEY_ENTER ||
-            key == GLFW_KEY_1 || key == GLFW_KEY_2 || key == GLFW_KEY_3 || key == GLFW_KEY_4 || key == GLFW_KEY_DELETE) {
+            key == GLFW_KEY_1 || key == GLFW_KEY_2 || key == GLFW_KEY_3 || key == GLFW_KEY_4 ||
+            key == GLFW_KEY_8 || key == GLFW_KEY_9 || key == GLFW_KEY_0 || key == GLFW_KEY_DELETE) {
         if (!lastKeyToggles[key] && keyToggles[key]) {
             lastKeyToggles[key] = true;
             return true;

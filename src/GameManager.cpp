@@ -119,9 +119,17 @@ shared_ptr<GameObject> GameManager::parseObject(string objectString) {
     bool playerSpawn = toBool(elems[11]);
     bool collectable = toBool(elems[12]);
     bool light = toBool(elems[13]);
+    bool moving = toBool(elems[14]);
+    float speed = stof(elems[15]);
+    vec3 pos2 = vec3(stof(elems[16]), stof(elems[17]), stof(elems[18]));
+
     int shape = light;
 
-    return createObject(pos, scale, rot, magnetic, deadly, playerSpawn, collectable, light, shape);
+    shared_ptr<GameObject> obj = createObject(pos, scale, rot, magnetic, deadly, playerSpawn, collectable, light, moving, shape);
+    obj->setSpeed(speed);
+    obj->setPosition2(pos2);
+
+    return obj;
 }
 
 void GameManager::importLevel(string level)
@@ -269,10 +277,10 @@ void GameManager::initScene()
     
     GLSL::checkError(GET_FILE_LINE);
 
-    tempObject = createObject(false, false, false, false, false, CUBE);
-    playerSpawn = createObject(false, false, true, false, false, CUBE);
-    spaceshipPart = createObject(false, false, false, true, false, CUBE);
-    light = createObject(false, false, false, false, true, SPHERE);
+    tempObject = createObject(false, false, false, false, false, false, CUBE);
+    playerSpawn = createObject(false, false, true, false, false, false, CUBE);
+    spaceshipPart = createObject(false, false, false, true, false, false, CUBE);
+    light = createObject(false, false, false, false, true, false, SPHERE);
     light->setPosition(vec3(0.0, 10.0, 0.0));
 }
 
@@ -352,7 +360,7 @@ void GameManager::processInputs()
     float modSpeed = 0.1 * modifier;
 
     // rotate
-    vec3 rotate = obj->getRotation();
+    /*vec3 rotate = obj->getRotation();
     if (find(objectKeys.begin(), objectKeys.end(), 'L') != objectKeys.end()) {
         rotate[currentAxis] -= modSpeed;
         obj->setRotation(rotate);
@@ -360,17 +368,19 @@ void GameManager::processInputs()
     if (find(objectKeys.begin(), objectKeys.end(), 'R') != objectKeys.end()) {
         rotate[currentAxis] += modSpeed;
         obj->setRotation(rotate);
-    }
+    }*/
 
     // translate
-    vec3 position = obj->getPosition();
-    if (find(objectKeys.begin(), objectKeys.end(), 'U') != objectKeys.end()) {
-        position[currentAxis] += modSpeed;
-        obj->setPosition(position);
-    }
-    if (find(objectKeys.begin(), objectKeys.end(), 'D') != objectKeys.end()) {
-        position[currentAxis] -= modSpeed;
-        obj->setPosition(position);
+    if (!obj->getMoving() || find(objectKeys.begin(), objectKeys.end(), '-') == objectKeys.end()) {
+        vec3 position = obj->getPosition();
+        if (find(objectKeys.begin(), objectKeys.end(), 'U') != objectKeys.end()) {
+            position[currentAxis] += modSpeed;
+            obj->setPosition(position);
+        }
+        if (find(objectKeys.begin(), objectKeys.end(), 'D') != objectKeys.end()) {
+            position[currentAxis] -= modSpeed;
+            obj->setPosition(position);
+        }
     }
 
     // scale
@@ -389,6 +399,36 @@ void GameManager::processInputs()
     }
     if (find(objectKeys.begin(), objectKeys.end(), '5') != objectKeys.end()) {
         obj->setDeadly(!obj->getDeadly());
+    }
+
+
+    if (find(objectKeys.begin(), objectKeys.end(), '8') != objectKeys.end()) {
+        obj->setMoving(!obj->getMoving());
+    }
+    if (obj->getMoving()) {
+        if (find(objectKeys.begin(), objectKeys.end(), '9') != objectKeys.end()) {
+            float speed = obj->getSpeed();
+            speed -= modSpeed;
+            obj->setSpeed(speed);
+        }
+        if (find(objectKeys.begin(), objectKeys.end(), '0') != objectKeys.end()) {
+            float speed = obj->getSpeed();
+            speed += modSpeed;
+            obj->setSpeed(speed);
+        }
+
+        if (find(objectKeys.begin(), objectKeys.end(), '-') != objectKeys.end()) {
+            // left control held down, deal with position 2
+            vec3 position = obj->getPosition2();
+            if (find(objectKeys.begin(), objectKeys.end(), 'U') != objectKeys.end()) {
+                position[currentAxis] += modSpeed;
+                obj->setPosition2(position);
+            }
+            if (find(objectKeys.begin(), objectKeys.end(), 'D') != objectKeys.end()) {
+                position[currentAxis] -= modSpeed;
+                obj->setPosition2(position);
+            }
+        }
     }
 
     if (find(objectKeys.begin(), objectKeys.end(), 'X') != objectKeys.end()) {
@@ -471,7 +511,7 @@ void GameManager::renderGame(int fps)
     if (Mouse::wasLeftMouseClicked() && (objectPlacement || setSpawn || setCollectable || setLight)) {
         if (objectPlacement) {
             objects.push_back(tempObject);
-            tempObject = createObject(false, false, false, false, false, CUBE);
+            tempObject = createObject(false, false, false, false, false, false, CUBE);
             if (currentObject > 0) {
                 currentObject++;
             }
@@ -540,6 +580,13 @@ void GameManager::renderGame(int fps)
         } else {
             obj = objects.at(currentObject);
         }
+
+        if (obj->getMoving()) {
+            vec3 pos2 = obj->getPosition2();
+            printStringToScreen(-95.0f, 60.0f, "X: " + to_string(pos2.x) + " Y:" + to_string(pos2.y) + " Z:" + to_string(pos2.z), 0.0f, 0.0f, 0.0f);
+            printStringToScreen(-95.0f, 50.0f, "Speed: " + to_string(obj->getSpeed()), 0.0f, 0.0f, 0.0f);
+        }
+
         vec3 pos = obj->getPosition();
         vec3 scale = obj->getScale();
         vec3 rotation = obj->getRotation();
@@ -572,14 +619,14 @@ void GameManager::resize_callback(GLFWwindow *window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-shared_ptr<GameObject> GameManager::createObject(vec3 position, vec3 scale, vec3 rotation, bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, int shape)
+shared_ptr<GameObject> GameManager::createObject(vec3 position, vec3 scale, vec3 rotation, bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, bool moving, int shape)
 {
-    return make_shared<GameObject>(position, scale, rotation, shapes.at(shape), magnetic, deadly, spawnPoint, collectable, light);
+    return make_shared<GameObject>(position, scale, rotation, shapes.at(shape), magnetic, deadly, spawnPoint, collectable, light, moving);
 }
 
-shared_ptr<GameObject> GameManager::createObject(bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, int shape)
+shared_ptr<GameObject> GameManager::createObject(bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, bool moving, int shape)
 {
-    return createObject(vec3(0.0f, 0.0f, 0.0f), vec3(1.0f, 1.0f, 1.0f), vec3(0.0f, 0.0f, 0.0f), magnetic, deadly, spawnPoint, collectable, light, shape);
+    return createObject(vec3(0.0f, 0.0f, 0.0f), vec3(1.0f, 1.0f, 1.0f), vec3(0.0f, 0.0f, 0.0f), magnetic, deadly, spawnPoint, collectable, light, moving, shape);
 }
 
 void GameManager::printStringToScreen(float x, float y, const string &text, float r, float g, float b)

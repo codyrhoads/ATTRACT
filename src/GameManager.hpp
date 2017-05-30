@@ -39,8 +39,8 @@ public:
     int getNumObjCollected() const {return numObjCollected;}
     int getNumObj() const {return objects.size();}
 private:
-    std::shared_ptr<GameObject> createObject(bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, int shape);
-    std::shared_ptr<GameObject> createObject(glm::vec3 position, glm::vec3 scale, glm::vec3 rotation, bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, int shape);
+    std::shared_ptr<GameObject> createObject(bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, bool moving, int shape);
+    std::shared_ptr<GameObject> createObject(glm::vec3 position, glm::vec3 scale, glm::vec3 rotation, bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, bool moving, int shape);
     void importLevel(std::string level);
     std::shared_ptr<GameObject> parseObject(std::string objectString);
     void printStringToScreen(float x, float y, const std::string &text, float r, float g, float b);
