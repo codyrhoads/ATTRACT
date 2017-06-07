@@ -122,6 +122,9 @@ vector<char> InputManager::processInputs()
     if (Keyboard::isPressed(GLFW_KEY_DELETE)) {
         objectKeys.push_back('X');
     }
+    if (Keyboard::isPressed(GLFW_KEY_6)) {
+        objectKeys.push_back('6');
+    }
 
     camera->interpretPressedKeys(movementKeys);
     return objectKeys;

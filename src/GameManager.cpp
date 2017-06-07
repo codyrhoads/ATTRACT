@@ -54,7 +54,8 @@ GameManager::GameManager(GLFWwindow *window, const string &resourceDir, const st
 window(window),
 RESOURCE_DIR(resourceDir),
 LEVEL_DIR(levelDir),
-level(level)
+level(level),
+night(false)
 {
     objIntervalCounter = 0.0f;
     numObjCollected = 0;
@@ -138,6 +139,9 @@ void GameManager::importLevel(string level)
     ifstream file;
     file.open(level);
     if (file.is_open()) {
+        if (getline(file,line)) {
+            night = toBool(line);
+        }
         if (getline(file, line)) {
             light = parseObject(line);
         }
@@ -287,6 +291,10 @@ void GameManager::initScene()
 void GameManager::processInputs()
 {
     vector<char> objectKeys = inputManager->processInputs();
+
+    if (find(objectKeys.begin(), objectKeys.end(), '6') != objectKeys.end()) {
+        night = !night;
+    }
 
     if (find(objectKeys.begin(), objectKeys.end(), 'p') != objectKeys.end()) {
         objectPlacement = !objectPlacement;
@@ -448,7 +456,7 @@ void GameManager::processInputs()
         scanf("%79s", str);
         ofstream file;
         file.open(LEVEL_DIR + str);
-        file << light->toString() << endl << playerSpawn->toString() << endl << spaceshipPart->toString() << endl;
+        file << night << endl << light->toString() << endl << playerSpawn->toString() << endl << spaceshipPart->toString() << endl;
         for (unsigned int i = 0; i < objects.size(); i++) {
             file << objects.at(i)->toString() << endl;
         }
@@ -565,7 +573,7 @@ void GameManager::renderGame(int fps)
     // stb_easy_font.h is used for printing fonts to the screen.
     //
     printStringToScreen(0, 0, "+", 0, 0, 0); 
-    printStringToScreen(60.0f, -95.0f, to_string(fps) + " FPS", 0.0f, 0.0f, 0.0f);
+    printStringToScreen(55.0f, -95.0f, "Night: " + to_string(night), 0.0f, 0.0f, 0.0f);
 
     if (objects.size() > 0 || objectPlacement || setSpawn || setCollectable || setLight) {
         shared_ptr<GameObject> obj;

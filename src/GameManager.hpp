@@ -71,6 +71,7 @@ private:
     bool objectPlacement, setSpawn, setCollectable, setLight;
     unsigned int currentObject;
     int currentAxis;
+    bool night;
 };
 
 #endif /* GameManager_hpp */

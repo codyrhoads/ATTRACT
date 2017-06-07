@@ -42,6 +42,8 @@ Down: decrease translation
 
 3: set light
 
+6: toggle night mode
+
 
 4: toggle magnetic
 
