@@ -123,10 +123,11 @@ shared_ptr<GameObject> GameManager::parseObject(string objectString) {
     bool moving = toBool(elems[14]);
     float speed = stof(elems[15]);
     vec3 pos2 = vec3(stof(elems[16]), stof(elems[17]), stof(elems[18]));
+    bool door = toBool(elems[19]);
 
     int shape = light;
 
-    shared_ptr<GameObject> obj = createObject(pos, scale, rot, magnetic, deadly, playerSpawn, collectable, light, moving, shape);
+    shared_ptr<GameObject> obj = createObject(pos, scale, rot, magnetic, deadly, playerSpawn, collectable, light, moving, door, shape);
     obj->setSpeed(speed);
     obj->setPosition2(pos2);
 
@@ -281,10 +282,10 @@ void GameManager::initScene()
     
     GLSL::checkError(GET_FILE_LINE);
 
-    tempObject = createObject(false, false, false, false, false, false, CUBE);
-    playerSpawn = createObject(false, false, true, false, false, false, CUBE);
-    spaceshipPart = createObject(false, false, false, true, false, false, CUBE);
-    light = createObject(false, false, false, false, true, false, SPHERE);
+    tempObject = createObject(false, false, false, false, false, false, false, CUBE);
+    playerSpawn = createObject(false, false, true, false, false, false, false, CUBE);
+    spaceshipPart = createObject(false, false, false, true, false, false, false, CUBE);
+    light = createObject(false, false, false, false, true, false, false, SPHERE);
     light->setPosition(vec3(0.0, 10.0, 0.0));
 }
 
@@ -408,7 +409,9 @@ void GameManager::processInputs()
     if (find(objectKeys.begin(), objectKeys.end(), '5') != objectKeys.end()) {
         obj->setDeadly(!obj->getDeadly());
     }
-
+    if (find(objectKeys.begin(), objectKeys.end(), '7') != objectKeys.end()) {
+        obj->setDoor(!obj->getDoor());
+    }
 
     if (find(objectKeys.begin(), objectKeys.end(), '8') != objectKeys.end()) {
         obj->setMoving(!obj->getMoving());
@@ -519,7 +522,7 @@ void GameManager::renderGame(int fps)
     if (Mouse::wasLeftMouseClicked() && (objectPlacement || setSpawn || setCollectable || setLight)) {
         if (objectPlacement) {
             objects.push_back(tempObject);
-            tempObject = createObject(false, false, false, false, false, false, CUBE);
+            tempObject = createObject(false, false, false, false, false, false, false, CUBE);
             if (currentObject > 0) {
                 currentObject++;
             }
@@ -627,14 +630,14 @@ void GameManager::resize_callback(GLFWwindow *window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-shared_ptr<GameObject> GameManager::createObject(vec3 position, vec3 scale, vec3 rotation, bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, bool moving, int shape)
+shared_ptr<GameObject> GameManager::createObject(vec3 position, vec3 scale, vec3 rotation, bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, bool moving, bool door, int shape)
 {
-    return make_shared<GameObject>(position, scale, rotation, shapes.at(shape), magnetic, deadly, spawnPoint, collectable, light, moving);
+    return make_shared<GameObject>(position, scale, rotation, shapes.at(shape), magnetic, deadly, spawnPoint, collectable, light, moving, door);
 }
 
-shared_ptr<GameObject> GameManager::createObject(bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, bool moving, int shape)
+shared_ptr<GameObject> GameManager::createObject(bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, bool moving, bool door, int shape)
 {
-    return createObject(vec3(0.0f, 0.0f, 0.0f), vec3(1.0f, 1.0f, 1.0f), vec3(0.0f, 0.0f, 0.0f), magnetic, deadly, spawnPoint, collectable, light, moving, shape);
+    return createObject(vec3(0.0f, 0.0f, 0.0f), vec3(1.0f, 1.0f, 1.0f), vec3(0.0f, 0.0f, 0.0f), magnetic, deadly, spawnPoint, collectable, light, moving, door, shape);
 }
 
 void GameManager::printStringToScreen(float x, float y, const string &text, float r, float g, float b)

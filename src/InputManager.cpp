@@ -107,6 +107,12 @@ vector<char> InputManager::processInputs()
     if (Keyboard::isPressed(GLFW_KEY_5)) {
         objectKeys.push_back('5');
     }
+    if (Keyboard::isPressed(GLFW_KEY_6)) {
+        objectKeys.push_back('6');
+    }
+    if (Keyboard::isPressed(GLFW_KEY_7)) {
+        objectKeys.push_back('7');
+    }
     if (Keyboard::isPressed(GLFW_KEY_8)) {
         objectKeys.push_back('8');
     }
@@ -121,9 +127,6 @@ vector<char> InputManager::processInputs()
     }
     if (Keyboard::isPressed(GLFW_KEY_DELETE)) {
         objectKeys.push_back('X');
-    }
-    if (Keyboard::isPressed(GLFW_KEY_6)) {
-        objectKeys.push_back('6');
     }
 
     camera->interpretPressedKeys(movementKeys);

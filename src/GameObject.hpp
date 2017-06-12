@@ -21,10 +21,10 @@ public:
     GameObject();
     GameObject(const glm::vec3 &position, const glm::vec3 &scale, const glm::vec3 &rotation,
                const std::shared_ptr<Shape> &shape,
-               const bool magnetic, const bool deadly, const bool spawnPoint, const bool collectable, const bool light, const bool moving);
+               const bool magnetic, const bool deadly, const bool spawnPoint, const bool collectable, const bool light, const bool moving, const bool door);
     virtual ~GameObject();
 
-    std::shared_ptr<Material> createMaterial(bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, bool moving);
+    std::shared_ptr<Material> createMaterial(bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, bool moving, bool door);
     void draw(const std::shared_ptr<Program> &prog);
 
     glm::vec3 getPosition() const {return position;}
@@ -41,6 +41,8 @@ public:
     void setMagnetic(bool mag);
     bool getDeadly() const {return deadly;}
     void setDeadly(bool dead);
+    bool getDoor() const {return door;}
+    void setDoor(bool isDoor);
     bool getMoving() const {return moving;}
     void setMoving(bool move);
     float getSpeed() const {return speed;}
@@ -49,7 +51,7 @@ private:
     glm::vec3 position, scale, rotation, position2;
     std::shared_ptr<Shape> shape;
     std::shared_ptr<Material> material;
-    bool magnetic, deadly, spawnPoint, collectable, light, selected, moving;
+    bool magnetic, deadly, spawnPoint, collectable, light, selected, moving, door;
     float speed;
 };
 

@@ -35,7 +35,7 @@ material(make_shared<Material>())
 
 GameObject::GameObject(const glm::vec3 &position, const glm::vec3 &scale, const glm::vec3 &rotation,
                        const std::shared_ptr<Shape> &shape,
-                       const bool magnetic, const bool deadly, const bool spawnPoint, const bool collectable, const bool light, const bool moving) :
+                       const bool magnetic, const bool deadly, const bool spawnPoint, const bool collectable, const bool light, const bool moving, const bool door) :
 position(position),
 position2(vec3(0.0f, 0.0f, 0.0f)),
 scale(scale),
@@ -47,10 +47,11 @@ spawnPoint(spawnPoint),
 collectable(collectable),
 light(light),
 moving(moving),
+door(door),
 speed(0.0f),
 selected(false)
 {
-    material = createMaterial(magnetic, deadly, spawnPoint, collectable, light, moving);
+    material = createMaterial(magnetic, deadly, spawnPoint, collectable, light, moving, door);
 }
 
 GameObject::~GameObject()
@@ -58,7 +59,7 @@ GameObject::~GameObject()
 
 }
 
-shared_ptr<Material> GameObject::createMaterial(bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, bool moving)
+shared_ptr<Material> GameObject::createMaterial(bool magnetic, bool deadly, bool spawnPoint, bool collectable, bool light, bool moving, bool door)
 {
     if (magnetic && deadly) {
         return make_shared<Material>(vec3(0.2f, 0.2f, 0.2f), vec3(1.0f, 0.5f, 1.0f), vec3(1.0f, 0.9f, 0.8f), 200.0f);
@@ -72,6 +73,8 @@ shared_ptr<Material> GameObject::createMaterial(bool magnetic, bool deadly, bool
         return make_shared<Material>(vec3(0.2f, 0.2f, 0.2f), vec3(0.0f, 0.0f, 1.0f), vec3(1.0f, 0.9f, 0.8f), 200.0f);
     } else if (light) {
         return make_shared<Material>(vec3(0.2f, 0.2f, 0.2f), vec3(1.0f, 1.0f, 0.0f), vec3(1.0f, 0.9f, 0.8f), 200.0f);
+    } else if (door) {
+        return make_shared<Material>(vec3(0.2f, 0.2f, 0.2f), vec3(0.0f, 1.0f, 1.0f), vec3(1.0f, 0.9f, 0.8f), 200.0f);
     } else if (moving) {
         return make_shared<Material>(vec3(0.2f, 0.2f, 0.2f), vec3(0.0f, 1.0f, 0.3f), vec3(1.0f, 0.9f, 0.8f), 200.0f);
     } else {
@@ -81,18 +84,23 @@ shared_ptr<Material> GameObject::createMaterial(bool magnetic, bool deadly, bool
 
 void GameObject::setMagnetic(bool mag) {
     magnetic = mag;
-    material = createMaterial(magnetic, deadly, spawnPoint, collectable, light, moving);
+    material = createMaterial(magnetic, deadly, spawnPoint, collectable, light, moving, door);
 }
 
 void GameObject::setDeadly(bool dead) {
     deadly = dead;
-    material = createMaterial(magnetic, deadly, spawnPoint, collectable, light, moving);
+    material = createMaterial(magnetic, deadly, spawnPoint, collectable, light, moving, door);
+}
+
+void GameObject::setDoor(bool isDoor) {
+    door = isDoor;
+    material = createMaterial(magnetic, deadly, spawnPoint, collectable, light, moving, door);
 }
 
 void GameObject::setMoving(bool move) {
     moving = move;
     position2 = vec3(position.x, position.y, position.z);
-    material = createMaterial(magnetic, deadly, spawnPoint, collectable, light, moving);
+    material = createMaterial(magnetic, deadly, spawnPoint, collectable, light, moving, door);
 }
 
 void GameObject::setSpeed(float v) {
@@ -130,7 +138,7 @@ void GameObject::draw(const shared_ptr<Program> &prog)
 
         shape->draw(prog);
 
-        material = createMaterial(magnetic, deadly, spawnPoint, collectable, light, moving);
+        material = createMaterial(magnetic, deadly, spawnPoint, collectable, light, moving, door);
     }
 }
 
@@ -143,5 +151,5 @@ string GameObject::toString()
 {
     return vecString(position) + "," + vecString(scale) + "," + vecString(rotation) + "," + to_string(magnetic)
         + "," + to_string(deadly) + "," + to_string(spawnPoint) + "," + to_string(collectable) + "," + to_string(light)
-        + "," + to_string(moving) + "," + to_string(speed) + "," + vecString(position2);
+        + "," + to_string(moving) + "," + to_string(speed) + "," + vecString(position2) + "," + to_string(door);
 }

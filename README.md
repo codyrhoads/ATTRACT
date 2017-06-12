@@ -49,6 +49,8 @@ Down: decrease translation
 
 5: toggle deadly
 
+7: toggle door
+
 8: toggle moving
 
 ============== for movable objects ==============
